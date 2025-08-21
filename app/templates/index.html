@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block content %}
+<form class="card" method="GET" action="/" id="searchForm">
+  <label for="city">City (or use location)</label>
+  <input id="city" name="city" type="text" placeholder="e.g., Clearwater" value="{{ request.query_params.get('city','') }}">
+  <input type="hidden" id="lat" name="lat" value="{{ request.query_params.get('lat','') }}">
+  <input type="hidden" id="lon" name="lon" value="{{ request.query_params.get('lon','') }}">
+  <label for="units">Units</label>
+  <select id="units" name="units">
+    <option value="imperial" {% if request.query_params.get('units','imperial') == 'imperial' %}selected{% endif %}>Imperial (°F)</option>
+    <option value="metric" {% if request.query_params.get('units') == 'metric' %}selected{% endif %}>Metric (°C)</option>
+  </select>
+  <div class="row">
+    <button type="submit">Get Weather</button>
+    <button type="button" id="geoBtn" class="ghost">Use my location</button>
+  </div>
+</form>
+
+{% if error %}
+<div class="card error"><strong>Error:</strong> {{ error }}</div>
+{% endif %}
+
+{% if data %}
+<div class="card result">
+  <div class="row">
+    <div class="col">
+      <h2>
+        {% if data.city %}{{ data.city }}{% else %}Lat {{ data.lat }}, Lon {{ data.lon }}{% endif %}
+        {% if data.country %}, {{ data.country }}{% endif %}
+      </h2>
+
+      {% if data.temp is not none %}
+        <p class="big">{{ data.temp|round(0) }}°{% if data.units == 'imperial' %}F{% else %}C{% endif %}</p>
+      {% else %}
+        <p class="big">—</p>
+      {% endif %}
+
+      <p>
+        {% if data.feels_like is not none %}Feels like {{ data.feels_like|round(0) }}°{% else %}Feels like —{% endif %},
+        {{ data.weather or '—' }}
+      </p>
+      <p>H/L: — • —</p>
+    </div>
+    <div class="col">
+      <ul class="meta">
+        <li>Humidity: {% if data.humidity is not none %}{{ data.humidity }}%{% else %}—{% endif %}</li>
+        <li>Pressure: {% if data.pressure is not none %}{{ data.pressure }} hPa{% else %}—{% endif %}</li>
+        <li>Wind:
+          {% if data.wind_speed is not none %}{{ data.wind_speed }} {{ 'mph' if data.units == 'imperial' else 'm/s' }}{% else %}—{% endif %}
+          {% if data.wind_deg is not none %} ({{ data.wind_deg }}°){% endif %}
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<script>
+const form = document.getElementById('searchForm');
+form?.addEventListener('submit', () => {
+  const lat = document.getElementById('lat');
+  const lon = document.getElementById('lon');
+  if (!lat.value) lat.removeAttribute('name');
+  if (!lon.value) lon.removeAttribute('name');
+});
+
+const geoBtn = document.getElementById('geoBtn');
+geoBtn?.addEventListener('click', () => {
+  if (!navigator.geolocation) { alert('Geolocation not supported'); return; }
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      document.getElementById('lat').value = pos.coords.latitude.toFixed(5);
+      document.getElementById('lon').value = pos.coords.longitude.toFixed(5);
+      document.getElementById('city').value = '';
+      form.submit();
+    },
+    (err) => { alert('Unable to get location: ' + err.message); },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+});
+</script>
+{% endblock %}
+
